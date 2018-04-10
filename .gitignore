@@ -2,3 +2,4 @@
 .idea/**/*
 darknet53.conv.74
 darknet53.conv.74.npz
+*.out

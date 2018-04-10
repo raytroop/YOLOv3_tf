@@ -14,10 +14,17 @@ class Darknet53:
             self.data_dict = np.load(darknet53_npz_path)
             self.keys = self.data_dict.keys()
         self.trainable = trainable
-        self.ema = tf.train.ExponentialMovingAverage(0.9)
         self.avg_var = []
 
     def get_var(self, initial_value, name, var_name, trainable=True):
+        """
+
+        :param initial_value:
+        :param name:
+        :param var_name:
+        :param trainable:  moving average not trainable
+        :return:
+        """
         if self.data_dict is not None and name in self.keys:
             idx = conv_bn.index(var_name)
             value = self.data_dict[name][idx] if idx < 4 else self.data_dict[name][idx][0]
@@ -58,23 +65,26 @@ class Darknet53:
             filt = self.get_conv_var(size, in_channels, out_channels, name)
             conv = tf.nn.conv2d(bottom, filt, [1, stride, stride, 1], padding='SAME')
             beta, gamma, moving_mean, moving_variance = self.get_conv_bn_var(out_channels, name)
-            batch_mean, batch_var = tf.nn.moments(conv, [0, 1, 2], name='moments')
-            ema = tf.train.ExponentialMovingAverage(decay=0.9)
-
+            # TODO: How to initialize moving_mean & moving_var with darknet data
             def mean_var_with_update():
-                ema_apply_op = ema.apply([batch_mean, batch_var])
-                with tf.control_dependencies([ema_apply_op]):
+                batch_mean, batch_var = tf.nn.moments(conv, [0, 1, 2], name='moments')
+                train_mean = tf.assign(moving_mean,
+                                       moving_mean*self.decay_bn + batch_mean*(1 - self.decay_bn))
+                train_var = tf.assign(moving_variance,
+                                      moving_variance * self.decay_bn + moving_variance * (1 - self.decay_bn))
+                with tf.control_dependencies([train_mean, train_var]):
                     return tf.identity(batch_mean), tf.identity(batch_var)
 
             mean, var = tf.cond(self.phase_train,
                                 mean_var_with_update,
-                                lambda: (ema.average(batch_mean), ema.average(batch_var)))
+                                lambda: (moving_mean, moving_variance))
             normed = tf.nn.batch_normalization(conv, mean, var, beta, gamma, 1e-8)
-            activation = tf.nn.leaky_relu(normed)
+            activation = tf.nn.leaky_relu(normed, alpha=0.1)
         return activation
 
-    def build(self, img, train_mode):
+    def build(self, img, train_mode, decay_bn=0.99):
         self.phase_train = train_mode
+        self.decay_bn = decay_bn
         self.conv0 = self.conv_layer(bottom=img, size=3, stride=1, in_channels=3,   # 416x3
                                      out_channels=32, name='conv_0')                # 416x32
         self.conv1 = self.conv_layer(bottom=self.conv0, size=3, stride=2, in_channels=32,

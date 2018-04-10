@@ -33,6 +33,10 @@ unique_config_file = unique_config_sections(config_path)
 cfg_parser = configparser.ConfigParser()
 cfg_parser.read_file(unique_config_file)
 weights_file = open(weights_path, 'rb')
+major = np.ndarray(shape=(1, ), dtype='int32', buffer=weights_file.read(4))
+minor = np.ndarray(shape=(1, ), dtype='int32', buffer=weights_file.read(4))
+revision = np.ndarray(shape=(1, ), dtype='int32', buffer=weights_file.read(4))
+seen = np.ndarray(shape=(1, ), dtype=np.int64, buffer=weights_file.read(8))
 
 filter_list = [3, ]
 
