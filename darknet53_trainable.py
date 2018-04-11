@@ -4,7 +4,7 @@ import numpy as np
 conv_bn = ['bias', 'gamma', 'mean', 'variance', 'conv_weights']
 
 class Darknet53:
-    def __init__(self, darknet53_npz_path=None, trainable=True):
+    def __init__(self, darknet53_npz_path=None, trainable=True, scratch=False):
         """
         :param darknet53_npz_path:
         :param trainable:   python
@@ -15,8 +15,9 @@ class Darknet53:
             self.keys = self.data_dict.keys()
         self.trainable = trainable
         self.avg_var = []
+        self.scratch = scratch
 
-    def get_var(self, initial_value, name, var_name, trainable=True):
+    def get_var(self, initial_value, name, var_name, var_trainable=True):
         """
 
         :param initial_value:
@@ -25,13 +26,15 @@ class Darknet53:
         :param trainable:  moving average not trainable
         :return:
         """
-        if self.data_dict is not None and name in self.keys:
+        if self.scratch:
+            value = initial_value
+        elif self.data_dict is not None and name in self.keys:
             idx = conv_bn.index(var_name)
             value = self.data_dict[name][idx] if idx < 4 else self.data_dict[name][idx][0]
         else:
-            value = initial_value
+            raise ValueError('From scratch train feature extractor or provide complete weights')
 
-        if self.trainable and trainable:
+        if self.trainable and var_trainable:
             var = tf.Variable(value, name=var_name)
         elif self.trainable:
             var = tf.Variable(value, name=var_name, trainable=False)
@@ -54,10 +57,10 @@ class Darknet53:
         gamma = self.get_var(initial_value, name, 'gamma')
 
         initial_value = tf.truncated_normal([out_channels], .0, .001)
-        mean = self.get_var(initial_value, name, 'mean', trainable=False)
+        mean = self.get_var(initial_value, name, 'mean', var_trainable=False)
 
         initial_value = tf.truncated_normal([out_channels], .0, .001)
-        variance = self.get_var(initial_value, name, 'variance', trainable=False)
+        variance = self.get_var(initial_value, name, 'variance', var_trainable=False)
         return beta, gamma, mean, variance
 
     def conv_layer(self, bottom, size, stride, in_channels, out_channels, name):

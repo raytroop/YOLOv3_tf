@@ -1,5 +1,4 @@
 import tensorflow as tf
-import numpy as np
 from darknet53_trainable import Darknet53
 import cv2
 import numpy as np

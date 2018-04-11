@@ -1,4 +1,4 @@
-from yolo_head import yolo_head
+from yolo_layer import yolo_head
 import tensorflow as tf
 
 
