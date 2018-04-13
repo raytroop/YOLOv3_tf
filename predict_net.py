@@ -7,7 +7,7 @@ from draw_boxes import draw_boxes
 import matplotlib.pyplot as plt
 
 
-# IMG_ID ='001542'
+# IMG_ID ='008957'
 # image_test = Image.open('/home/raytroop/Dataset4ML/VOC2007/VOCdevkit/VOC2007/JPEGImages/{}.jpg'.format(IMG_ID))
 image_test = Image.open('image/dog.jpg')
 resized_image = image_test.resize((416, 416), Image.BICUBIC)

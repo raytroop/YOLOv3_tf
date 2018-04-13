@@ -4,6 +4,8 @@ Try to implement YOLOv3 with TensorFlow
 2. darknet 52 conv layer: **darknet53_trainable.py**
 3. yolo layer(loss & predict): **yolo_layer.py**
 
+</br>
+<img src="image/yolov3_architecture.png">
 #### train (train_net.py)
     1. for now, only train detector layer(50 epoch, batch size: 8)
     2. froze feature extractor('darknet53.conv.74')
