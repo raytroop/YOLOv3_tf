@@ -1,15 +1,14 @@
 from yolo_top import yolov3
 import numpy as np
 import tensorflow as tf
-from data_pipeline import data_pipeline
 from config import cfg
 from PIL import Image, ImageDraw, ImageFont
 from draw_boxes import draw_boxes
 import matplotlib.pyplot as plt
 
 
-IMG_ID ='001542'
-image_test = Image.open('/home/raytroop/Dataset4ML/VOC2007/VOCdevkit/VOC2007/JPEGImages/{}.jpg'.format(IMG_ID))
+# IMG_ID ='001542'
+# image_test = Image.open('/home/raytroop/Dataset4ML/VOC2007/VOCdevkit/VOC2007/JPEGImages/{}.jpg'.format(IMG_ID))
 image_test = Image.open('image/dog.jpg')
 resized_image = image_test.resize((416, 416), Image.BICUBIC)
 image_data = np.array(resized_image, dtype='float32')
