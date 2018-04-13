@@ -6,6 +6,8 @@ Try to implement YOLOv3 with TensorFlow
 
 </br>
 <img src="image/yolov3_architecture.png">
+</br>
+
 #### train (train_net.py)
     1. for now, only train detector layer(50 epoch, batch size: 8)
     2. froze feature extractor('darknet53.conv.74')
