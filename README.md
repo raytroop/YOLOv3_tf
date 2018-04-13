@@ -1,11 +1,9 @@
 # YOLOv3_tf
 Try to implement YOLOv3 with TensorFlow
-    1. transform darknet weight into npz:
-        save_npz.py
-    2. darknet 52 conv layer:
-        darknet53_trainable.py
-    3. yolo layer:
-        yolo_layer.py
+1. transform darknet weight into npz: **save_npz.py**
+2. darknet 52 conv layer: **darknet53_trainable.py**
+3. yolo layer(loss & predict): **yolo_layer.py**
+
 #### train (train_net.py)
     1. for now, only train detector layer(50 epoch, batch size: 8)
     2. froze feature extractor('darknet53.conv.74')
@@ -28,4 +26,3 @@ _traindata: VOC2007 trainval & VOC2012 trainval_
     3. PIL
     4. numpy
     5. matplotlib
-
