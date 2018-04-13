@@ -12,11 +12,10 @@ class yolov3:
         self.istraining = istraining
         self.decay_bn = decay_bn
         self.img_shape = tf.shape(self.img)
-
-    # def build(self):
         with tf.variable_scope("Feature_Extractor"):
             feature_extractor = Darknet53('darknet53.conv.74.npz', scratch=cfg.scratch)
             self.feats52 = feature_extractor.build(self.img, self.istraining, self.decay_bn)
+        with tf.variable_scope("Head"):
             head = yolo_head(self.istraining)
             self.yolo123, self.yolo456, self.yolo789 = head.build(self.feats52,
                                                                   feature_extractor.res18,
@@ -67,12 +66,14 @@ class yolov3:
         self.loss = loss1 + loss2 + loss3
         return self.loss
 
-    def pedict(self, iou_threshold=0.5):
+    def pedict(self, img_hw, iou_threshold=0.5, score_threshold=0.5):
         """
+        follow yad2k - yolo_eval
         For now, only support single image prediction
         :param iou_threshold:
         :return:
         """
+        img_hwhw = tf.expand_dims(tf.stack([img_hw[0], img_hw[1]] * 2, axis=0), axis=0)
         with tf.name_scope('Predict_0'):
             pred_loc0 = tf.concat([self.pred_xy0[..., 1:] - 0.5 * self.pred_wh0[..., 1:],
                                    self.pred_xy0[..., 0:1] - 0.5 * self.pred_wh0[..., 0:1],
@@ -80,8 +81,7 @@ class yolov3:
                                    self.pred_xy0[..., 0:1] + 0.5 * self.pred_wh0[..., 0:1]
                                    ], axis=-1)  # (y1, x1, y2, x2)
             pred_loc0 = tf.maximum(tf.minimum(pred_loc0, 1), 0)
-            pred_loc0 = tf.reshape(pred_loc0, [-1, 4]) * \
-                        tf.expand_dims(tf.stack([self.img_shape[1], self.img_shape[2]] * 2, axis=0), axis=0)
+            pred_loc0 = tf.reshape(pred_loc0, [-1, 4]) * img_hwhw
             pred_obj0 = tf.reshape(self.pred_confidence0, shape=[-1])
             pred_cls0 = tf.reshape(self.pred_class_prob0, [-1, cfg.classes])
         with tf.name_scope('Predict_1'):
@@ -91,8 +91,7 @@ class yolov3:
                                    self.pred_xy1[..., 0:1] + 0.5 * self.pred_wh1[..., 0:1]
                                    ], axis=-1)  # (y1, x1, y2, x2)
             pred_loc1 = tf.maximum(tf.minimum(pred_loc1, 1), 0)
-            pred_loc1 = tf.reshape(pred_loc1, [-1, 4]) * \
-                        tf.expand_dims(tf.stack([self.img_shape[1], self.img_shape[2]] * 2, axis=0), axis=0)
+            pred_loc1 = tf.reshape(pred_loc1, [-1, 4]) * img_hwhw
             pred_obj1 = tf.reshape(self.pred_confidence1, shape=[-1])
             pred_cls1 = tf.reshape(self.pred_class_prob1, [-1, cfg.classes])
         with tf.name_scope('Predict_2'):
@@ -102,8 +101,7 @@ class yolov3:
                                    self.pred_xy2[..., 0:1] + 0.5 * self.pred_wh2[..., 0:1]
                                    ], axis=-1)  # (y1, x1, y2, x2)
             pred_loc2 = tf.maximum(tf.minimum(pred_loc2, 1), 0)
-            pred_loc2 = tf.reshape(pred_loc2, [-1, 4]) * \
-                        tf.expand_dims(tf.stack([self.img_shape[1], self.img_shape[2]] * 2, axis=0), axis=0)
+            pred_loc2 = tf.reshape(pred_loc2, [-1, 4]) * img_hwhw
             pred_obj2 = tf.reshape(self.pred_confidence2, shape=[-1])
             pred_cls2 = tf.reshape(self.pred_class_prob2, [-1, cfg.classes])
 
@@ -111,15 +109,25 @@ class yolov3:
         self.pred_obj = tf.concat([pred_obj0, pred_obj1, pred_obj2], axis=0, name='pred_objectness')
         self.pred_cls = tf.concat([pred_cls0, pred_cls1, pred_cls2], axis=0, name='pred_clsprob')
 
-        sel_idx = tf.image.non_max_suppression(self.pred_loc, self.pred_obj,
+        # score filter
+        box_scores = tf.expand_dims(self.pred_obj, axis=1) * self.pred_cls      # (?, 20)
+        box_label = tf.argmax(box_scores, axis=-1)      # (?, )
+        box_scores_max = tf.reduce_max(box_scores, axis=-1)     # (?, )
+
+        pred_mask = box_scores_max > score_threshold
+        boxes = tf.boolean_mask(self.pred_loc, pred_mask)
+        scores = tf.boolean_mask(box_scores_max, pred_mask)
+        classes = tf.boolean_mask(box_label, pred_mask)
+
+        # non_max_suppression
+        idx_nms = tf.image.non_max_suppression(boxes, scores,
                                                max_output_size=5,
                                                iou_threshold=iou_threshold)
-        sel_loc = tf.gather(self.pred_loc, sel_idx)
-        sel_obj = tf.gather(self.pred_obj, sel_idx)
-        sel_cls_prob = tf.reduce_max(tf.gather(self.pred_cls, sel_idx), axis=-1)
-        sel_cls_label = tf.argmax(tf.gather(self.pred_cls, sel_idx), axis=-1)
+        boxes = tf.gather(boxes, idx_nms)
+        scores = tf.gather(scores, idx_nms)
+        classes = tf.gather(classes, idx_nms)
 
-        return sel_obj, sel_loc, sel_cls_prob, sel_cls_label
+        return boxes, scores, classes
 
 
 

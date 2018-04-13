@@ -85,8 +85,8 @@ class Darknet53:
             activation = tf.nn.leaky_relu(normed, alpha=0.1)
         return activation
 
-    def build(self, img, train_mode, decay_bn=0.99):
-        self.phase_train = train_mode
+    def build(self, img, istraining, decay_bn=0.99):
+        self.phase_train = istraining
         self.decay_bn = decay_bn
         self.conv0 = self.conv_layer(bottom=img, size=3, stride=1, in_channels=3,   # 416x3
                                      out_channels=32, name='conv_0')                # 416x32
@@ -116,7 +116,7 @@ class Darknet53:
         self.conv11 = self.conv_layer(bottom=self.conv10, size=3, stride=1, in_channels=128,
                                       out_channels=256, name='conv_11')             # 52x256
         self.res3 = self.conv11 + self.conv9                                        # 52x256
-        self.conv12 = self.conv_layer(bottom=self.res3, size=1, stride=1, in_channels=512,
+        self.conv12 = self.conv_layer(bottom=self.res3, size=1, stride=1, in_channels=256,
                                       out_channels=128, name='conv_12')             # 52x128
         self.conv13 = self.conv_layer(bottom=self.conv12, size=3, stride=1, in_channels=128,
                                       out_channels=256, name='conv_13')             # 52x256

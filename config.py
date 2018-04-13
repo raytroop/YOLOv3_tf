@@ -2,6 +2,7 @@ from easydict import EasyDict as edict
 import numpy as np
 
 
+
 __C = edict()
 # Consumers can get config by:
 #   from config import cfg
@@ -13,6 +14,8 @@ __C.num = 9
 __C.num_anchors_per_layer = 3
 __C.batch_size = 8
 __C.scratch = False
+__C.names = ["aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable",
+           "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
 #
 # Training options
 #
@@ -27,6 +30,7 @@ __C.train.lr_steps = [40000, 45000]
 __C.train.lr_scales = [.1, .1]
 __C.train.max_truth = 30
 __C.train.mask = np.array([[0, 1, 2], [3, 4, 5], [6, 7, 8]])
+__C.train.image_resized = 384   # { 320, 352, ... , 608} multiples of 32
 
 #
 # image process options

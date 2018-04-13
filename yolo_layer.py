@@ -88,10 +88,10 @@ class yolo_det:
         anchors_tensor = tf.reshape(self.anchors, [1, 1, 1, cfg.num_anchors_per_layer, 2])
 
         # Dynamic implementation of conv dims for fully convolutional model
-        conv_dims = tf.shape(feats)[1:3]    # assuming channels last
+        conv_dims = tf.stack([tf.shape(feats)[2], tf.shape(feats)[1]])    # assuming channels last, w h
         # In YOLO the height index is the inner most iteration
-        conv_height_index = tf.range(conv_dims[0])
-        conv_width_index = tf.range(conv_dims[1])
+        conv_height_index = tf.range(conv_dims[1])
+        conv_width_index = tf.range(conv_dims[0])
         conv_width_index, conv_height_index = tf.meshgrid(conv_width_index, conv_height_index)
         conv_height_index = tf.reshape(conv_height_index, [-1, 1])
         conv_width_index = tf.reshape(conv_width_index, [-1, 1])
@@ -105,15 +105,16 @@ class yolo_det:
         # 1, 1
         # ...
         # 12, 1
-        conv_index = tf.reshape(conv_index, [1, conv_dims[0], conv_dims[1], 1, 2])  # [1, 13, 13, 1, 2]
+        conv_index = tf.reshape(conv_index, [1, conv_dims[1], conv_dims[0], 1, 2])  # [1, 13, 13, 1, 2]
         conv_index = tf.cast(conv_index, tf.float32)
 
         feats = tf.reshape(
-            feats, [-1, conv_dims[0], conv_dims[1], cfg.num_anchors_per_layer, self.num_classes + 5])
+            feats, [-1, conv_dims[1], conv_dims[0], cfg.num_anchors_per_layer, self.num_classes + 5])
         # [None, 13, 13, 3, 25]
 
         conv_dims = tf.cast(tf.reshape(conv_dims, [1, 1, 1, 1, 2]), tf.float32)
-        img_dims = self.img_shape[1:3]
+
+        img_dims = tf.stack([self.img_shape[2], self.img_shape[1]])   # w, h
         img_dims = tf.cast(tf.reshape(img_dims, [1, 1, 1, 1, 2]), tf.float32)
 
         box_xy = tf.sigmoid(feats[..., :2])  # σ(tx), σ(ty)     # [None, 13, 13, 3, 2]
@@ -168,8 +169,7 @@ def preprocess_true_boxes(true_boxes, anchors, feat_size, image_size):
     union_areas = true_areas + anchors_areas - intersect_areas  # [batch, 30, num_anchors]
 
     iou_scores = intersect_areas / union_areas  # [batch, 30, num_anchors]
-    iou_max = tf.reduce_max(iou_scores, axis=-1)    # [batch, 30]
-    valid = tf.greater(iou_max, 0)     # [batch, 30]
+    valid = tf.logical_not(tf.reduce_all(tf.equal(iou_scores, 0), axis=-1))     # [batch, 30]
     iout_argmax = tf.cast(tf.argmax(iou_scores, axis=-1), tf.int32)   # [batch, 30], (0, 1, 2)
     anchors = tf.reshape(anchors, [-1, 2])      # has been normalize by img shape
     anchors_cf = tf.gather(anchors, iout_argmax)   # [batch, 30, 2]
@@ -206,7 +206,7 @@ def preprocess_true_boxes(true_boxes, anchors, feat_size, image_size):
         loc_cls_i = tf.concat([sig_xy_i, twh, true_boxes_i[:, -1:]], axis=-1)    # (?, 5)
         loc_cls_i = tf.reshape(loc_cls_i, [-1, 1, 1, 1, 5])     # (?, 1, 1, 1, 5)
         loc_cls_i = loc_cls_i * mask_i      # (?, 13, 13, 3, 5)
-        loc_cls_i = tf.reduce_sum(loc_cls_i, axis=[0])  # (?, 13, 13, 3, 5)
+        loc_cls_i = tf.reduce_sum(loc_cls_i, axis=[0])  # (13, 13, 3, 5)
         # exception, one anchor is responsible for 2 or more object
         loc_cls_i = tf.concat([loc_cls_i[..., :4], tf.minimum(loc_cls_i[..., -1:], 19)], axis=-1)
         loc_cls.append(loc_cls_i)
@@ -231,8 +231,8 @@ def confidence_loss(pred_xy, pred_wh, pred_confidence, true_boxes, detectors_mas
     :param detectors_mask: [batch, 13, 13, 5, 1]
     :return:
     """
-    pred_xy = tf.expand_dims(pred_xy, 4)  # [batch, 13, 13, 5, 1, 2]
-    pred_wh = tf.expand_dims(pred_wh, 4)  # [batch, 13, 13, 5, 1, 2]
+    pred_xy = tf.expand_dims(pred_xy, 4)  # [batch, 13, 13, 3, 1, 2]
+    pred_wh = tf.expand_dims(pred_wh, 4)  # [batch, 13, 13, 3, 1, 2]
 
     pred_wh_half = pred_wh / 2.
     pred_mins = pred_xy - pred_wh_half
