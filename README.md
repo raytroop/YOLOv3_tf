@@ -20,6 +20,9 @@ _traindata: VOC2007 trainval & VOC2012 trainval_
 </br>
 </br>
 
+#### trained weights
+- [pan.baidu](https://pan.baidu.com/s/1fQ73S3HVoMeY8Tz5um12Mw)  key: lbd4
+- [Dropbox](https://pan.baidu.com/s/1fQ73S3HVoMeY8Tz5um12Mw)
 #### Acknowledgements & Reference
 - :fire: [Darknet](https://github.com/pjreddie/darknet) :fire:
 - :fire: [YAD2K](https://github.com/allanzelener/YAD2K) :fire:
